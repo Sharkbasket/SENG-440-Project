@@ -1,3 +1,7 @@
+# vim editing artifacts
+.*~
+*~
+
 # Prerequisites
 *.d
 
