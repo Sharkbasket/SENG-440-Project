@@ -18,6 +18,8 @@ int main()
     int y = HEIGHT;
     int n = N_CHANNELS;
     
+    int i, j; // Loop counters
+    
     unsigned char* r_px = (unsigned char*)malloc(N_PIXELS);
     unsigned char* g_px = (unsigned char*)malloc(N_PIXELS);
     unsigned char* b_px = (unsigned char*)malloc(N_PIXELS);
@@ -32,7 +34,7 @@ int main()
     unsigned char* px_data = stbi_load(INPUT_FILE, &x, &y, &n, STBI_rgb);
     
     // Parse red, green, and blue into seperate arrays
-    for (int i = 0; i < N_PIXELS; i++)
+    for (i = 0; i < N_PIXELS; i++)
     {
         r_px[i] = px_data[3 * i];
         g_px[i] = px_data[(3 * i) + 1];
@@ -40,14 +42,14 @@ int main()
     }
     
     // Calculate luma (no downsampling)
-    for (int i = 0; i < N_PIXELS; i++)
+    for (i = 0; i < N_PIXELS; i++)
     {
         y_px[i] = 16 + (0.257 * r_px[i]) + (0.504 * g_px[i])
                   + (0.098 * b_px[i]);
     }
     
     // Calculate chroma (4:2:0 downsampling)
-    for (int i = 0, j = 0; i < N_PIXELS; i++)
+    for (i = 0, j = 0; i < N_PIXELS; i++)
     {
         // Only sample on even lines
         if ((i % (WIDTH * 2)) < WIDTH)
@@ -65,7 +67,7 @@ int main()
     }
     
     // Upsample the chroma by replication
-    for (int j = 0; j < (N_PIXELS / 4); j++)
+    for (j = 0; j < (N_PIXELS / 4); j++)
     {
         int LINE_OFFSET = (j / (WIDTH / 2)) * (WIDTH * 2);
         int ROW_OFFSET = 2 * (j % (WIDTH / 2));
@@ -83,7 +85,7 @@ int main()
     }
     
     // Perform quick inverse conversion to RGB to see if this works
-    for (int i = 0; i < N_PIXELS; i++)
+    for (i = 0; i < N_PIXELS; i++)
     {
         r_px[i] = (unsigned char)((1.164 * (y_px[i] - 16))
                                   + (1.596 * (cr_px_us[i] - 128)));
@@ -95,7 +97,7 @@ int main()
     }
     
     // Interleave the r, g, and b components back into the pixel data array
-    for (int i = 0; i < N_PIXELS; i++)
+    for (i = 0; i < N_PIXELS; i++)
     {
         px_data[3 * i] = r_px[i];
         px_data[(3 * i) + 1] = g_px[i];
@@ -121,7 +123,8 @@ int main()
 // This is just a test to dump the pixel data to the console
 void dump_pixel_data(unsigned char* px_data)
 {
-    for (int i = 0; i < (N_PIXELS * STBI_rgb); i++)
+    int i;
+    for (i = 0; i < (N_PIXELS * STBI_rgb); i++)
     {
         if ((i % 3) == 0)
         {
