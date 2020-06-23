@@ -69,9 +69,9 @@ int main()
     // Upsample the chroma by replication
     for (j = 0; j < (N_PIXELS / 4); j++)
     {
-        int LINE_OFFSET = (j / (WIDTH / 2)) * (WIDTH * 2);
-        int ROW_OFFSET = 2 * (j % (WIDTH / 2));
-        int BASE = LINE_OFFSET + ROW_OFFSET;
+        int ROW_OFFSET = (j / (WIDTH / 2)) * (WIDTH * 2);
+        int COLUMN_OFFSET = 2 * (j % (WIDTH / 2));
+        int BASE = ROW_OFFSET + COLUMN_OFFSET;
         
         cb_px_us[BASE] = cb_px_ds[j];
         cb_px_us[BASE + 1] = cb_px_ds[j];
