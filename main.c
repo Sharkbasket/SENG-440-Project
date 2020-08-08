@@ -1,3 +1,19 @@
+/* 
+ * University of Victoria
+ * Faculty of Engineering
+ * SENG 440 Embedded Systems 
+ *
+ * Optimization of YCC-to-RGB colour space conversion
+ *
+ * Authors: Shaun McGuigan and Andrew Friesen
+ *
+ * Last modified: 2020/08/07
+ */ 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
 #include "stb_image.h"
@@ -10,131 +26,118 @@
 #define WIDTH 1024
 #define HEIGHT 768
 #define N_PIXELS (WIDTH * HEIGHT)
-#define N_CHANNELS 4 // The source image file has an additional alpha channel
+#define N_CHANNELS 4 // Number of channels in the input file
 
-int main()
-{
-    int x = WIDTH;
-    int y = HEIGHT;
-    int n = N_CHANNELS;
+int main() {
+    // Array index/loop counters
+    uint32_t i = 0;     // Range: 0 to (N_PIXELS * 3)
+    uint16_t row = 0;   // Range: 0 to HEIGHT
+    uint16_t col = 0;   // Range: 0 to WIDTH
+    uint16_t c_row = 0; // Range: 0 to (HEIGHT / 2)
+    uint16_t c_col = 0; // Range: 0 to (WIDTH / 2)
     
-    int i, j; // Loop counters
-    
-    unsigned char* r_px = (unsigned char*)malloc(N_PIXELS);
-    unsigned char* g_px = (unsigned char*)malloc(N_PIXELS);
-    unsigned char* b_px = (unsigned char*)malloc(N_PIXELS);
-    
-    float* y_px = (float*)malloc(N_PIXELS * sizeof(float));
-    float* cb_px_ds = (float*)malloc((N_PIXELS / 4) * sizeof(float));
-    float* cr_px_ds = (float*)malloc((N_PIXELS / 4) * sizeof(float));
-    float* cb_px_us = (float*)malloc(N_PIXELS * sizeof(float));
-    float* cr_px_us = (float*)malloc(N_PIXELS * sizeof(float));
-    
-    // Ignore the alpha channel and just return RGB pixel data
-    unsigned char* px_data = stbi_load(INPUT_FILE, &x, &y, &n, STBI_rgb);
-    
-    // Parse red, green, and blue into seperate arrays
-    for (i = 0; i < N_PIXELS; i++)
-    {
-        r_px[i] = px_data[3 * i];
-        g_px[i] = px_data[(3 * i) + 1];
-        b_px[i] = px_data[(3 * i) + 2];
+    // Dynamically allocate arrays for holding pixel data
+    float* r[HEIGHT];
+    float* g[HEIGHT];
+    float* b[HEIGHT];
+    float* y[HEIGHT];
+    float* cb[HEIGHT / 2];
+    float* cr[HEIGHT / 2];
+    for (row = 0; row < HEIGHT; row++) {
+        r[row] = (float*)malloc(WIDTH * sizeof(float));
+        g[row] = (float*)malloc(WIDTH * sizeof(float));
+        b[row] = (float*)malloc(WIDTH * sizeof(float));
+        y[row] = (float*)malloc(WIDTH * sizeof(float));
+        if (row < (HEIGHT / 2)) {
+            cb[row] = (float*)malloc(WIDTH / 2 * sizeof(float));
+            cr[row] = (float*)malloc(WIDTH / 2 * sizeof(float));
+        }
     }
     
-    // Calculate luma (no downsampling)
-    for (i = 0; i < N_PIXELS; i++)
-    {
-        y_px[i] = 16 + (0.257 * r_px[i]) + (0.504 * g_px[i])
-                  + (0.098 * b_px[i]);
+    // Extract pixel data from input file
+    int X = WIDTH;
+    int Y = HEIGHT;
+    int N = N_CHANNELS;
+    uint8_t* px_data = stbi_load(INPUT_FILE, &X, &Y, &N, STBI_rgb);
+    
+    printf("Pixel data extracted\n");
+    
+    // Parse the extracted data into separate R, G, and B arrays
+    i = 0;
+    for (row = 0; row < HEIGHT; row++) {
+        for (col = 0; col < WIDTH; col++) {
+            r[row][col] = px_data[i++];
+            g[row][col] = px_data[i++];
+            b[row][col] = px_data[i++];
+        }
     }
     
-    // Calculate chroma (4:2:0 downsampling)
-    for (i = 0, j = 0; i < N_PIXELS; i++)
-    {
-        // Only sample on even lines
-        if ((i % (WIDTH * 2)) < WIDTH)
-        {
-            // Only sample every second pixel
-            if ((i % 2) == 0)
-            {
-                cb_px_ds[j] = 128 - (0.148 * r_px[i]) - (0.291 * g_px[i])
-                           + (0.439 * b_px[i]);
-                cr_px_ds[j] = 128 + (0.439 * r_px[i]) - (0.368 * g_px[i])
-                           - (0.071 * b_px[i]);
-                j++;
+    printf("RGB arrays populated\n");
+    
+    // Calculate YCC (4:2:0 chroma subsampling)
+    for (row = 0; row < HEIGHT; row++) {
+        c_row = row / 2;
+        for (col = 0; col < WIDTH; col++) {
+            // Calculate luma with full resolution (no downsampling)
+            y[row][col] = (16 + (0.257 * r[row][col])
+                              + (0.504 * g[row][col])
+                              + (0.098 * b[row][col]));
+            
+            // Only sample chroma on even numbered rows/columns
+            if (!((row % 2) || (col % 2))) {
+                c_col = col / 2;
+                cb[c_row][c_col] = (128 - (0.148 * r[row][col])
+                                        - (0.291 * g[row][col])
+                                        + (0.439 * b[row][col]));
+                cr[c_row][c_col] = (128 + (0.439 * r[row][col])
+                                        - (0.368 * g[row][col])
+                                        - (0.071 * b[row][col]));
             }
         }
     }
     
-    // Upsample the chroma by replication
-    for (j = 0; j < (N_PIXELS / 4); j++)
-    {
-        int ROW_OFFSET = (j / (WIDTH / 2)) * (WIDTH * 2);
-        int COLUMN_OFFSET = 2 * (j % (WIDTH / 2));
-        int BASE = ROW_OFFSET + COLUMN_OFFSET;
-        
-        cb_px_us[BASE] = cb_px_ds[j];
-        cb_px_us[BASE + 1] = cb_px_ds[j];
-        cb_px_us[BASE + WIDTH] = cb_px_ds[j];
-        cb_px_us[BASE + WIDTH + 1] = cb_px_ds[j];
-        
-        cr_px_us[BASE] = cr_px_ds[j];
-        cr_px_us[BASE + 1] = cr_px_ds[j];
-        cr_px_us[BASE + WIDTH] = cr_px_ds[j];
-        cr_px_us[BASE + WIDTH + 1] = cr_px_ds[j];
+    printf("RGB to YCC conversion completed\n");
+    
+    /*** STARTING POINT FOR OPTIMIZATION ***/
+    
+    // Perform quick floating-point inverse conversion for testing
+    // Upsampling of cb/cr by replication
+    c_row = 0;
+    c_col = 0;
+    for (row = 0; row < HEIGHT; row++) {
+        c_row = row / 2;
+        for (col = 0; col < WIDTH; col++) {
+            c_col = col / 2;
+            r[row][col] = (1.164 * (y[row][col] - 16))
+                        + (1.596 * (cr[c_row][c_col] - 128));
+            g[row][col] = (1.164 * (y[row][col] - 16))
+                        - (0.813 * (cr[c_row][c_col] - 128))
+                        - (0.391 * (cb[c_row][c_col] - 128));
+            b[row][col] = (1.164 * (y[row][col] - 16))
+                        + (2.018 * (cb[c_row][c_col] - 128));
+        }
     }
     
-    // Perform quick inverse conversion to RGB to see if this works
-    for (i = 0; i < N_PIXELS; i++)
-    {
-        r_px[i] = (unsigned char)((1.164 * (y_px[i] - 16))
-                                  + (1.596 * (cr_px_us[i] - 128)));
-        g_px[i] = (unsigned char)((1.164 * (y_px[i] - 16))
-                                  - (0.813 * (cr_px_us[i] - 128))
-                                  - (0.391 * (cb_px_us[i] - 128)));
-        b_px[i] = (unsigned char)((1.164 * (y_px[i] - 16))
-                                  + (2.018 * (cb_px_us[i] - 128)));
-    }
+    /*** ENDING POINT FOR OPTIMIZATION ***/
+    
+    printf("YCC to RGB conversion completed\n");
     
     // Interleave the r, g, and b components back into the pixel data array
-    for (i = 0; i < N_PIXELS; i++)
-    {
-        px_data[3 * i] = r_px[i];
-        px_data[(3 * i) + 1] = g_px[i];
-        px_data[(3 * i) + 2] = b_px[i];
+    i = 0;
+    for (row = 0; row < HEIGHT; row++) {
+        for (col = 0; col < WIDTH; col++) {
+            px_data[i++] = r[row][col];
+            px_data[i++] = g[row][col];
+            px_data[i++] = b[row][col];
+        }
     }
     
-    // Write the output file
+    printf("RGB arrays interleaved into one array for writing output\n");
+    
     stbi_write_png(OUTPUT_FILE, WIDTH, HEIGHT, STBI_rgb, px_data,
                    (WIDTH * STBI_rgb));
     
-    free(r_px);
-    free(g_px);
-    free(b_px);
-    free(y_px);
-    free(cb_px_ds);
-    free(cr_px_ds);
-    free(cb_px_us);
-    free(cr_px_us);
+    printf("Output file written\n");
     
     return 0;
-}
-
-// This is just a test to dump the pixel data to the console
-void dump_pixel_data(unsigned char* px_data)
-{
-    int i;
-    for (i = 0; i < (N_PIXELS * STBI_rgb); i++)
-    {
-        if ((i % 3) == 0)
-        {
-            printf(" ");
-            if ((i % 24) == 0)
-            {
-                printf("\n");
-            }
-        }
-        printf("%02X", *(px_data++));
-    }
-    printf("\nTotal number of RGB bytes: %d\n", N_PIXELS * STBI_rgb);
 }
