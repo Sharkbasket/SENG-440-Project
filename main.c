@@ -30,11 +30,11 @@
 
 int main() {
     // Array index/loop counters
-    uint32_t i = 0;     // Range: 0 to (N_PIXELS * 3)
-    uint16_t row = 0;   // Range: 0 to HEIGHT
-    uint16_t col = 0;   // Range: 0 to WIDTH
-    uint16_t c_row = 0; // Range: 0 to (HEIGHT / 2)
-    uint16_t c_col = 0; // Range: 0 to (WIDTH / 2)
+    uint32_t i = 0;     // Range: [0, N_PIXELS*3)
+    uint16_t row = 0;   // Range: [0, HEIGHT)
+    uint16_t col = 0;   // Range: [0, WIDTH)
+    uint16_t c_row = 0; // Range: [0, HEIGHT/2)
+    uint16_t c_col = 0; // Range: [0, WIDTH/2)
     
     // Dynamically allocate arrays for holding pixel data
     float* r[HEIGHT];
@@ -126,9 +126,9 @@ int main() {
     i = 0;
     for (row = 0; row < HEIGHT; row++) {
         for (col = 0; col < WIDTH; col++) {
-            px_data[i++] = r[row][col];
-            px_data[i++] = g[row][col];
-            px_data[i++] = b[row][col];
+            px_data[i++] = (uint8_t)r[row][col];
+            px_data[i++] = (uint8_t)g[row][col];
+            px_data[i++] = (uint8_t)b[row][col];
         }
     }
     
