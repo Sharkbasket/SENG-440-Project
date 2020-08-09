@@ -63,8 +63,7 @@ int main() {
     printf("Pixel data extracted\n");
     
     // Parse the extracted data into separate R, G, and B arrays
-    i = 0;
-    for (row = 0; row < HEIGHT; row++) {
+    for (row = 0, i = 0; row < HEIGHT; row++) {
         for (col = 0; col < WIDTH; col++) {
             r[row][col] = px_data[i++];
             g[row][col] = px_data[i++];
@@ -102,17 +101,15 @@ int main() {
     
     // Perform quick floating-point inverse conversion for testing
     // Upsampling of cb/cr by replication
-    c_row = 0;
-    c_col = 0;
-    for (row = 0; row < HEIGHT; row++) {
+    for (row = 0, c_row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
-        for (col = 0; col < WIDTH; col++) {
+        for (col = 0, c_col = 0; col < WIDTH; col++) {
             c_col = col / 2;
             r[row][col] = (1.164 * (y[row][col] - 16))
                         + (1.596 * (cr[c_row][c_col] - 128));
             g[row][col] = (1.164 * (y[row][col] - 16))
-                        - (0.813 * (cr[c_row][c_col] - 128))
-                        - (0.391 * (cb[c_row][c_col] - 128));
+                        - (0.391 * (cb[c_row][c_col] - 128))
+                        - (0.813 * (cr[c_row][c_col] - 128));
             b[row][col] = (1.164 * (y[row][col] - 16))
                         + (2.018 * (cb[c_row][c_col] - 128));
         }
@@ -123,8 +120,7 @@ int main() {
     printf("YCC to RGB conversion completed\n");
     
     // Interleave the r, g, and b components back into the pixel data array
-    i = 0;
-    for (row = 0; row < HEIGHT; row++) {
+    for (row = 0, i = 0; row < HEIGHT; row++) {
         for (col = 0; col < WIDTH; col++) {
             px_data[i++] = (uint8_t)r[row][col];
             px_data[i++] = (uint8_t)g[row][col];
