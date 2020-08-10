@@ -74,23 +74,23 @@ int main() {
     printf("RGB arrays populated\n");
     
     // Calculate YCC (4:2:0 chroma subsampling)
-    for (row = 0; row < HEIGHT; row++) {
+    for (row = 0, c_row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
-        for (col = 0; col < WIDTH; col++) {
+        for (col = 0, c_col = 0; col < WIDTH; col++) {
             // Calculate luma with full resolution (no downsampling)
-            y[row][col] = (16 + (0.257 * r[row][col])
-                              + (0.504 * g[row][col])
-                              + (0.098 * b[row][col]));
+            y[row][col] = 16 + (0.257 * r[row][col])
+                             + (0.504 * g[row][col])
+                             + (0.098 * b[row][col]);
             
             // Only sample chroma on even numbered rows/columns
             if (!((row % 2) || (col % 2))) {
                 c_col = col / 2;
-                cb[c_row][c_col] = (128 - (0.148 * r[row][col])
-                                        - (0.291 * g[row][col])
-                                        + (0.439 * b[row][col]));
-                cr[c_row][c_col] = (128 + (0.439 * r[row][col])
-                                        - (0.368 * g[row][col])
-                                        - (0.071 * b[row][col]));
+                cb[c_row][c_col] = 128 - (0.148 * r[row][col])
+                                       - (0.291 * g[row][col])
+                                       + (0.439 * b[row][col]);
+                cr[c_row][c_col] = 128 + (0.439 * r[row][col])
+                                       - (0.368 * g[row][col])
+                                       - (0.071 * b[row][col]);
             }
         }
     }
