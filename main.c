@@ -21,6 +21,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include "scaleInt.h"
+
 #define INPUT_FILE "1024x768-Jerry-TestPattern.png"
 #define OUTPUT_FILE "test_output.png"
 #define WIDTH 1024
@@ -73,6 +75,15 @@ int main() {
     
     printf("RGB arrays populated\n");
     
+   /* FILE *fp_y;
+    FILE *fp_cb;
+    FILE *fp_cr;
+
+    fp_y=fopen("C:/Users/andra/projects/seng440/y_out.txt","w");
+    fp_cb=fopen("C:/Users/andra/projects/seng440/cb_out.txt","w");
+    fp_cr=fopen("C:/Users/andra/projects/seng440/cr_out.txt","w");
+    */
+
     // Calculate YCC (4:2:0 chroma subsampling)
     for (row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
@@ -81,6 +92,8 @@ int main() {
             y[row][col] = (16 + (0.257 * r[row][col])
                               + (0.504 * g[row][col])
                               + (0.098 * b[row][col]));
+
+           // fprintf(fp_y,"%f \n",y[row][col]);
             
             // Only sample chroma on even numbered rows/columns
             if (!((row % 2) || (col % 2))) {
@@ -88,9 +101,14 @@ int main() {
                 cb[c_row][c_col] = (128 - (0.148 * r[row][col])
                                         - (0.291 * g[row][col])
                                         + (0.439 * b[row][col]));
+
+               // fprintf(fp_cb,"%f \n",cb[c_row][c_col]);
+
                 cr[c_row][c_col] = (128 + (0.439 * r[row][col])
                                         - (0.368 * g[row][col])
                                         - (0.071 * b[row][col]));
+
+               // fprintf(fp_cr,"%f \n",cr[c_row][c_col]);
             }
         }
     }
@@ -98,23 +116,84 @@ int main() {
     printf("RGB to YCC conversion completed\n");
     
     /*** STARTING POINT FOR OPTIMIZATION ***/
-    
+    //Convert floating point YCC arrays to fixed point
+	
+	//Created fixed point arrays
+    int32_t* r_fixed[HEIGHT];
+    int32_t* g_fixed[HEIGHT];
+    int32_t* b_fixed[HEIGHT];
+    int32_t* y_fixed[HEIGHT];
+    int32_t* cb_fixed[HEIGHT / 2];
+    int32_t* cr_fixed[HEIGHT / 2];
+
+    for (row = 0; row < HEIGHT; row++) 
+    {
+        r_fixed[row] = (int32_t*)malloc(WIDTH * sizeof(int32_t));
+        g_fixed[row] = (int32_t*)malloc(WIDTH * sizeof(int32_t));
+        b_fixed[row] = (int32_t*)malloc(WIDTH * sizeof(int32_t));
+        y_fixed[row] = (int32_t*)malloc(WIDTH * sizeof(int32_t));
+        if (row < (HEIGHT / 2)) 
+        {
+            cb_fixed[row] = (int32_t*)malloc(WIDTH / 2 * sizeof(int32_t));
+            cr_fixed[row] = (int32_t*)malloc(WIDTH / 2 * sizeof(int32_t));
+        }
+    }
+
+    for (row = 0; row < HEIGHT; row++) 
+    {
+        c_row = row / 2;
+        for (col = 0; col < WIDTH; col++) 
+        {
+            // Luma to fixed
+            y_fixed[row][col] = toFixed(y[row][col]);
+            
+            // Chromas to fixed
+            if (!((row % 2) || (col % 2))) 
+            {
+                c_col = col / 2;
+                cb_fixed[c_row][c_col] = toFixed(cb[c_row][c_col]);
+                cr_fixed[c_row][c_col] = toFixed(cr[c_row][c_col]);
+            }
+        }
+    }
+    const int32_t yShift=toFixed(16);
+    const int32_t cShift=toFixed(128);
+
+    const int32_t r_y_coeff=toFixed(1.164);
+    const int32_t r_cr_coeff=toFixed(1.596);
+
+    const int32_t g_y_coeff=toFixed(1.164);
+    const int32_t g_cb_coeff=toFixed(0.391);
+    const int32_t g_cr_coeff=toFixed(0.813);
+
+    const int32_t b_y_coeff=toFixed(1.164);
+    const int32_t b_cb_coeff=toFixed(2.018);
+
     // Perform quick floating-point inverse conversion for testing
     // Upsampling of cb/cr by replication
     for (row = 0, c_row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
         for (col = 0, c_col = 0; col < WIDTH; col++) {
             c_col = col / 2;
-            r[row][col] = (1.164 * (y[row][col] - 16))
-                        + (1.596 * (cr[c_row][c_col] - 128));
-            g[row][col] = (1.164 * (y[row][col] - 16))
-                        - (0.391 * (cb[c_row][c_col] - 128))
-                        - (0.813 * (cr[c_row][c_col] - 128));
-            b[row][col] = (1.164 * (y[row][col] - 16))
-                        + (2.018 * (cb[c_row][c_col] - 128));
+            r_fixed[row][col] = (r_y_coeff * (y_fixed[row][col] - yShift))
+                        + (r_cr_coeff * (cr_fixed[c_row][c_col] - cShift));
+            g_fixed[row][col] = (g_y_coeff * (y_fixed[row][col] - yShift))
+                        - (g_cb_coeff * (cb_fixed[c_row][c_col] - cShift))
+                        - (g_cr_coeff * (cr_fixed[c_row][c_col] - cShift));
+            b_fixed[row][col] = (b_y_coeff * (y_fixed[row][col] - yShift))
+                        + (b_cb_coeff * (cb_fixed[c_row][c_col] - cShift));
         }
     }
     
+    for (row = 0, i = 0; row < HEIGHT; row++) 
+    {
+        for (col = 0; col < WIDTH; col++) 
+        {
+            r[row][col] =  toFloat(r_fixed[row][col]);
+            g[row][col] =  toFloat(g_fixed[row][col]);
+            b[row][col] =  toFloat(b_fixed[row][col]);
+        }
+    }
     /*** ENDING POINT FOR OPTIMIZATION ***/
     
     printf("YCC to RGB conversion completed\n");
