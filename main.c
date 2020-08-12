@@ -28,6 +28,30 @@
 #define N_PIXELS (WIDTH * HEIGHT)
 #define N_CHANNELS 4 // Number of channels in the input file
 
+// Define fixed point constant coefficients (coded in 16 bits)
+#define SCALE_FACTOR 14
+#define DESCALE(x) (x >> SCALE_FACTOR)
+
+#define RGB_TO_YCC_COEFF_1_1 ((uint16_t)0x1073) // 0.257 * 2^14
+#define RGB_TO_YCC_COEFF_1_2 ((uint16_t)0x2042) // 0.504 * 2^14
+#define RGB_TO_YCC_COEFF_1_3 ((uint16_t)0x0646) // 0.098 * 2^14
+#define RGB_TO_YCC_COEFF_2_1 ((uint16_t)0x0979) // 0.148 * 2^14
+#define RGB_TO_YCC_COEFF_2_2 ((uint16_t)0x12A0) // 0.291 * 2^14
+#define RGB_TO_YCC_COEFF_2_3 ((uint16_t)0x1C19) // 0.439 * 2^14
+#define RGB_TO_YCC_COEFF_3_1 ((uint16_t)0x1C19) // 0.439 * 2^14
+#define RGB_TO_YCC_COEFF_3_2 ((uint16_t)0x178D) // 0.368 * 2^14
+#define RGB_TO_YCC_COEFF_3_3 ((uint16_t)0x048B) // 0.071 * 2^14
+
+#define YCC_T0_RGB_COEFF_1_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_T0_RGB_COEFF_1_2 ((uint16_t)0x0000) // Unused
+#define YCC_T0_RGB_COEFF_1_3 ((uint16_t)0x6625) // 1.596 * 2^14
+#define YCC_T0_RGB_COEFF_2_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_T0_RGB_COEFF_2_2 ((uint16_t)0x1906) // 0.391 * 2^14
+#define YCC_T0_RGB_COEFF_2_3 ((uint16_t)0x3408) // 0.813 * 2^14
+#define YCC_T0_RGB_COEFF_3_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_T0_RGB_COEFF_3_2 ((uint16_t)0x8127) // 2.018 * 2^14
+#define YCC_T0_RGB_COEFF_3_3 ((uint16_t)0x0000) // Unused
+
 int main() {
     // Array index/loop counters
     uint32_t i = 0;     // Range: [0, N_PIXELS*3)
@@ -37,20 +61,20 @@ int main() {
     uint16_t c_col = 0; // Range: [0, WIDTH/2)
     
     // Dynamically allocate arrays for holding pixel data
-    float* r[HEIGHT];
-    float* g[HEIGHT];
-    float* b[HEIGHT];
-    float* y[HEIGHT];
-    float* cb[HEIGHT / 2];
-    float* cr[HEIGHT / 2];
+    int16_t* r[HEIGHT];
+    int16_t* g[HEIGHT];
+    int16_t* b[HEIGHT];
+    int16_t* y[HEIGHT];
+    int16_t* cb[HEIGHT / 2];
+    int16_t* cr[HEIGHT / 2];
     for (row = 0; row < HEIGHT; row++) {
-        r[row] = (float*)malloc(WIDTH * sizeof(float));
-        g[row] = (float*)malloc(WIDTH * sizeof(float));
-        b[row] = (float*)malloc(WIDTH * sizeof(float));
-        y[row] = (float*)malloc(WIDTH * sizeof(float));
+        r[row] = (int16_t*)malloc(WIDTH * sizeof(int16_t));
+        g[row] = (int16_t*)malloc(WIDTH * sizeof(int16_t));
+        b[row] = (int16_t*)malloc(WIDTH * sizeof(int16_t));
+        y[row] = (int16_t*)malloc(WIDTH * sizeof(int16_t));
         if (row < (HEIGHT / 2)) {
-            cb[row] = (float*)malloc(WIDTH / 2 * sizeof(float));
-            cr[row] = (float*)malloc(WIDTH / 2 * sizeof(float));
+            cb[row] = (int16_t*)malloc(WIDTH / 2 * sizeof(int16_t));
+            cr[row] = (int16_t*)malloc(WIDTH / 2 * sizeof(int16_t));
         }
     }
     
@@ -65,9 +89,9 @@ int main() {
     // Parse the extracted data into separate R, G, and B arrays
     for (row = 0, i = 0; row < HEIGHT; row++) {
         for (col = 0; col < WIDTH; col++) {
-            r[row][col] = px_data[i++];
-            g[row][col] = px_data[i++];
-            b[row][col] = px_data[i++];
+            r[row][col] = (int16_t)px_data[i++];
+            g[row][col] = (int16_t)px_data[i++];
+            b[row][col] = (int16_t)px_data[i++];
         }
     }
     
@@ -78,19 +102,24 @@ int main() {
         c_row = row / 2;
         for (col = 0, c_col = 0; col < WIDTH; col++) {
             // Calculate luma with full resolution (no downsampling)
-            y[row][col] = 16 + (0.257 * r[row][col])
-                             + (0.504 * g[row][col])
-                             + (0.098 * b[row][col]);
+            y[row][col] = 16
+                        + DESCALE(RGB_TO_YCC_COEFF_1_1 * r[row][col])
+                        + DESCALE(RGB_TO_YCC_COEFF_1_2 * g[row][col])
+                        + DESCALE(RGB_TO_YCC_COEFF_1_3 * b[row][col]);
             
             // Only sample chroma on even numbered rows/columns
             if (!((row % 2) || (col % 2))) {
                 c_col = col / 2;
-                cb[c_row][c_col] = 128 - (0.148 * r[row][col])
-                                       - (0.291 * g[row][col])
-                                       + (0.439 * b[row][col]);
-                cr[c_row][c_col] = 128 + (0.439 * r[row][col])
-                                       - (0.368 * g[row][col])
-                                       - (0.071 * b[row][col]);
+                cb[c_row][c_col] =
+                    128
+                  - DESCALE(RGB_TO_YCC_COEFF_2_1 * r[row][col])
+                  - DESCALE(RGB_TO_YCC_COEFF_2_2 * g[row][col])
+                  + DESCALE(RGB_TO_YCC_COEFF_2_3 * b[row][col]);
+                cr[c_row][c_col] =
+                    128
+                  + DESCALE(RGB_TO_YCC_COEFF_3_1 * r[row][col])
+                  - DESCALE(RGB_TO_YCC_COEFF_3_2 * g[row][col])
+                  - DESCALE(RGB_TO_YCC_COEFF_3_3 * b[row][col]);
             }
         }
     }
@@ -105,13 +134,31 @@ int main() {
         c_row = row / 2;
         for (col = 0, c_col = 0; col < WIDTH; col++) {
             c_col = col / 2;
-            r[row][col] = (1.164 * (y[row][col] - 16))
-                        + (1.596 * (cr[c_row][c_col] - 128));
-            g[row][col] = (1.164 * (y[row][col] - 16))
-                        - (0.391 * (cb[c_row][c_col] - 128))
-                        - (0.813 * (cr[c_row][c_col] - 128));
-            b[row][col] = (1.164 * (y[row][col] - 16))
-                        + (2.018 * (cb[c_row][c_col] - 128));
+            r[row][col] =
+                DESCALE(YCC_T0_RGB_COEFF_1_1 * (y[row][col] - 16))
+              + DESCALE(YCC_T0_RGB_COEFF_1_3 * (cr[c_row][c_col] - 128));
+            if (r[row][col] < 0) {
+                r[row][col] = 0;
+            } else if (r[row][col] > 0xFF) {
+                r[row][col] = 0xFF;
+            }
+            g[row][col] = 
+                DESCALE(YCC_T0_RGB_COEFF_2_1 * (y[row][col] - 16))
+              - DESCALE(YCC_T0_RGB_COEFF_2_2 * (cb[c_row][c_col] - 128))
+              - DESCALE(YCC_T0_RGB_COEFF_2_3 * (cr[c_row][c_col] - 128));
+            if (g[row][col] < 0) {
+                g[row][col] = 0;
+            } else if (g[row][col] > 0xFF) {
+                g[row][col] = 0xFF;
+            }
+            b[row][col] =
+                DESCALE(YCC_T0_RGB_COEFF_3_1 * (y[row][col] - 16))
+              + DESCALE(YCC_T0_RGB_COEFF_3_2 * (cb[c_row][c_col] - 128));
+            if (b[row][col] < 0) {
+                b[row][col] = 0;
+            } else if (b[row][col] > 0xFF) {
+                b[row][col] = 0xFF;
+            }
         }
     }
     
