@@ -137,28 +137,18 @@ int main() {
             r[row][col] =
                 DESCALE(YCC_TO_RGB_COEFF_1_1 * (y[row][col] - 16))
               + DESCALE(YCC_TO_RGB_COEFF_1_3 * (cr[c_row][c_col] - 128));
-            if (r[row][col] < 0) {
-                r[row][col] = 0;
-            } else if (r[row][col] > 0xFF) {
-                r[row][col] = 0xFF;
-            }
+            r[row][col] &= -(r[row][col] >= 0);
+            
             g[row][col] = 
                 DESCALE(YCC_TO_RGB_COEFF_2_1 * (y[row][col] - 16))
               - DESCALE(YCC_TO_RGB_COEFF_2_2 * (cb[c_row][c_col] - 128))
               - DESCALE(YCC_TO_RGB_COEFF_2_3 * (cr[c_row][c_col] - 128));
-            if (g[row][col] < 0) {
-                g[row][col] = 0;
-            } else if (g[row][col] > 0xFF) {
-                g[row][col] = 0xFF;
-            }
+            g[row][col] &= -(g[row][col] >= 0);
+
             b[row][col] =
                 DESCALE(YCC_TO_RGB_COEFF_3_1 * (y[row][col] - 16))
               + DESCALE(YCC_TO_RGB_COEFF_3_2 * (cb[c_row][c_col] - 128));
-            if (b[row][col] < 0) {
-                b[row][col] = 0;
-            } else if (b[row][col] > 0xFF) {
-                b[row][col] = 0xFF;
-            }
+            b[row][col] &= -(b[row][col] >= 0);
         }
     }
     
