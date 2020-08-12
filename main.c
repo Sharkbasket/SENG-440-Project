@@ -42,15 +42,15 @@
 #define RGB_TO_YCC_COEFF_3_2 ((uint16_t)0x178D) // 0.368 * 2^14
 #define RGB_TO_YCC_COEFF_3_3 ((uint16_t)0x048B) // 0.071 * 2^14
 
-#define YCC_T0_RGB_COEFF_1_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
-#define YCC_T0_RGB_COEFF_1_2 ((uint16_t)0x0000) // Unused
-#define YCC_T0_RGB_COEFF_1_3 ((uint16_t)0x6625) // 1.596 * 2^14
-#define YCC_T0_RGB_COEFF_2_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
-#define YCC_T0_RGB_COEFF_2_2 ((uint16_t)0x1906) // 0.391 * 2^14
-#define YCC_T0_RGB_COEFF_2_3 ((uint16_t)0x3408) // 0.813 * 2^14
-#define YCC_T0_RGB_COEFF_3_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
-#define YCC_T0_RGB_COEFF_3_2 ((uint16_t)0x8127) // 2.018 * 2^14
-#define YCC_T0_RGB_COEFF_3_3 ((uint16_t)0x0000) // Unused
+#define YCC_TO_RGB_COEFF_1_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_TO_RGB_COEFF_1_2 ((uint16_t)0x0000) // Unused
+#define YCC_TO_RGB_COEFF_1_3 ((uint16_t)0x6625) // 1.596 * 2^14
+#define YCC_TO_RGB_COEFF_2_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_TO_RGB_COEFF_2_2 ((uint16_t)0x1906) // 0.391 * 2^14
+#define YCC_TO_RGB_COEFF_2_3 ((uint16_t)0x3408) // 0.813 * 2^14
+#define YCC_TO_RGB_COEFF_3_1 ((uint16_t)0x4A7F) // 1.164 * 2^14
+#define YCC_TO_RGB_COEFF_3_2 ((uint16_t)0x8127) // 2.018 * 2^14
+#define YCC_TO_RGB_COEFF_3_3 ((uint16_t)0x0000) // Unused
 
 int main() {
     // Array index/loop counters
@@ -135,25 +135,25 @@ int main() {
         for (col = 0, c_col = 0; col < WIDTH; col++) {
             c_col = col / 2;
             r[row][col] =
-                DESCALE(YCC_T0_RGB_COEFF_1_1 * (y[row][col] - 16))
-              + DESCALE(YCC_T0_RGB_COEFF_1_3 * (cr[c_row][c_col] - 128));
+                DESCALE(YCC_TO_RGB_COEFF_1_1 * (y[row][col] - 16))
+              + DESCALE(YCC_TO_RGB_COEFF_1_3 * (cr[c_row][c_col] - 128));
             if (r[row][col] < 0) {
                 r[row][col] = 0;
             } else if (r[row][col] > 0xFF) {
                 r[row][col] = 0xFF;
             }
             g[row][col] = 
-                DESCALE(YCC_T0_RGB_COEFF_2_1 * (y[row][col] - 16))
-              - DESCALE(YCC_T0_RGB_COEFF_2_2 * (cb[c_row][c_col] - 128))
-              - DESCALE(YCC_T0_RGB_COEFF_2_3 * (cr[c_row][c_col] - 128));
+                DESCALE(YCC_TO_RGB_COEFF_2_1 * (y[row][col] - 16))
+              - DESCALE(YCC_TO_RGB_COEFF_2_2 * (cb[c_row][c_col] - 128))
+              - DESCALE(YCC_TO_RGB_COEFF_2_3 * (cr[c_row][c_col] - 128));
             if (g[row][col] < 0) {
                 g[row][col] = 0;
             } else if (g[row][col] > 0xFF) {
                 g[row][col] = 0xFF;
             }
             b[row][col] =
-                DESCALE(YCC_T0_RGB_COEFF_3_1 * (y[row][col] - 16))
-              + DESCALE(YCC_T0_RGB_COEFF_3_2 * (cb[c_row][c_col] - 128));
+                DESCALE(YCC_TO_RGB_COEFF_3_1 * (y[row][col] - 16))
+              + DESCALE(YCC_TO_RGB_COEFF_3_2 * (cb[c_row][c_col] - 128));
             if (b[row][col] < 0) {
                 b[row][col] = 0;
             } else if (b[row][col] > 0xFF) {
