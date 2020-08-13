@@ -7,7 +7,7 @@
  *
  * Authors: Shaun McGuigan and Andrew Friesen
  *
- * Last modified: 2020/08/07
+ * Last modified: 2020/08/13
  */ 
 
 #include <stdio.h>
@@ -128,7 +128,6 @@ int main() {
     
     /*** STARTING POINT FOR OPTIMIZATION ***/
     
-    // Perform quick floating-point inverse conversion for testing
     // Upsampling of cb/cr by replication
     for (row = 0, c_row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
@@ -174,3 +173,4 @@ int main() {
     
     return 0;
 }
+
