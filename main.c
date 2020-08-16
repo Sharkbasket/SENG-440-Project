@@ -126,9 +126,7 @@ int main() {
     
     printf("RGB to YCC conversion completed\n");
     
-    /*** STARTING POINT FOR OPTIMIZATION ***/
-    
-    // Upsampling of cb/cr by replication
+    // Inverse conversion (upsampling of cb/cr by replication)
     for (row = 0, c_row = 0; row < HEIGHT; row++) {
         c_row = row / 2;
         for (col = 0, c_col = 0; col < WIDTH; col++) {
@@ -150,8 +148,6 @@ int main() {
             b[row][col] &= -(b[row][col] >= 0);
         }
     }
-    
-    /*** ENDING POINT FOR OPTIMIZATION ***/
     
     printf("YCC to RGB conversion completed\n");
     
